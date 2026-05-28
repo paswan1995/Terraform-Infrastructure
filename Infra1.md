@@ -13,7 +13,7 @@
 # Evaluating infrastructure
 
 * Understand Application Architecture
-![Preview](images/1.png)
+![Preview](Images/1.png)
 
 * diagram it shows how an application is structured and deployed across servers, including:
     * Application layers
@@ -25,7 +25,7 @@
 * After evaluation, we standardized the stack to Ubuntu Linux, Nginx, and MySQL for better performance, cost optimization, and scalability. 
 
 * Made some os/software choices
-![Preview](images/2.png)
+![Preview](Images/2.png)
 
 * Possible Infrastructural choices
     * Buy Servers and run it in our organization (On-premises)
@@ -49,7 +49,7 @@
 
 * The above case poses a challenge in a on-premise environments as i need to design DMZs ( De militarized Zones)
   
-  ![Preview](images/3.png)
+  ![Preview](Images/3.png)
 
     * This diagram represents a secure enterprise architecture using a DMZ. Incoming traffic from the internet first passes through an external firewall and reaches the DMZ where web servers are hosted.
     The DMZ isolates public-facing services from internal systems. Then traffic passes through an internal firewall to reach application and database layers inside the intranet.
@@ -75,6 +75,6 @@
 
 * IaaS vs PaaS vs SaaS
 
-![Preview](images/4.png)
+![Preview](Images/4.png)
 
 
