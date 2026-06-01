@@ -62,14 +62,58 @@
         * All of these are PaaS services and Azure does for you Same like AWS RDS. 
 
     * Database and Networks
-![preview](images/5.png)
+![preview](Images/5.png)
 
 * Steps:
     * Ensure network is present, if not create it
     * AWS by default in every region have one network created where as azure has no default networks
 
 * AWS Screen shots
-* VPC
+* VPC and security group
+![Preview](Images/6.png)
+![Preview](Images/7.png)
+![Preview](Images/8.png)
+ 
+* Create mysql Datbase
+![Preview](Images/9.png)
+![Preview](Images/10.png)
+
+* create same as in azure cloud also for practice
+
+# BCDR ( Business continuity and Disaster Recovery) 
+   * Think of a website or application as a shop.
+       * Business Continuity (BC) means: 
+           *  How can we keep the business running even if something goes wrong?
+           * Example: 
+                * Your website is running.
+                * One server fails
+                * Customers should still be able to use the website.
+       
+       * Disaster Recovery (DR) means: 
+          * How can we recover after a major problem or disaster?
+          * Examples:
+                * Server crashes
+                * Data center catches fire
+                * Database gets corrupted 
+          * The goal is to restore the application and data as quickly as possible.
+* 
+* Single Point of Failure (SPOF) Running stuff on one server
+* To avoid SPOF we have two options
+    * backups: it is a cheaper solution but will lead to downtime while restore.
+    * redundant servers: Have primary and secondary servers
+* Here are simple one-line definitions:
+
+* **BCDR (Business Continuity and Disaster Recovery):** A strategy to keep a business running during problems and recover quickly after a disaster.
+* **SPOF (Single Point of Failure):** A component whose failure can cause the entire system to stop working.
+* **Backup:** A copy of data or systems used to restore services after a failure, though it may cause downtime.
+* **Redundant Servers:** Additional servers that take over when the main server fails, reducing downtime.
+* **Active-Passive:** One server handles traffic while a standby server waits to take over if the main server fails.
+* **Active-Active:** Multiple servers handle traffic simultaneously, so if one fails, the others continue serving users without interruption.
+* **Failover:** The automatic switching from a failed server to a backup server.
+* **Downtime:** The period during which a system or service is unavailable to users.
+
+
+
 
 
 
