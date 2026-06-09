@@ -351,7 +351,7 @@ PS D:\DEVOPSPRACTICE-NOTES\Terraform-Practical>
 * we did to destroy this vpc 
 ```sh
 PS D:\DEVOPSPRACTICE-NOTES\Terraform-Practical> terraform destroy
-aws_vpc.net: Refreshing state... [id=vpc-04e2ee9088141e6fc]
+aws_vpc.net: Refreshing state... [id=vpc-048141e6fc]
 
 Terraform used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
   - destroy
@@ -360,7 +360,7 @@ Terraform will perform the following actions:
 
   # aws_vpc.net will be destroyed
   - resource "aws_vpc" "net" {
-      - arn                                  = "arn:aws:ec2:ap-south-2:810626480596:vpc/vpc-04e2ee9088141e6fc" -> null
+      - arn                                  = "arn:aws:ec2:ap-south-2:8596:vpc/vpc-04e6fc" -> null
       - assign_generated_ipv6_cidr_block     = false -> null
       - cidr_block                           = "10.0.0.0/16" -> null
       - default_network_acl_id               = "acl-6ff8289b" -> null
@@ -370,7 +370,7 @@ Terraform will perform the following actions:
       - enable_dns_hostnames                 = false -> null
       - enable_dns_support                   = true -> null
       - enable_network_address_usage_metrics = false -> null
-      - id                                   = "vpc-9088141e6fc" -> null
+      - id                                   = "vpc-9e6fc" -> null
       - instance_tenancy                     = "default" -> null
       - ipv6_netmask_length                  = 0 -> null
       - main_route_table_id                  = "rtb-63d495ef38" -> null
@@ -393,7 +393,7 @@ Do you really want to destroy all resources?
 
   Enter a value: yes
 
-aws_vpc.net: Destroying... [id=vpc-04e2ee9088141e6fc]
+aws_vpc.net: Destroying... [id=vpc91e6fc]
 aws_vpc.net: Destruction complete after 0s
 
 Destroy complete! Resources: 1 destroyed.
@@ -458,7 +458,7 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = "7f6d7ad6-2d7f-41f3-9e8e-9fbd23559aae"
+  subscription_id = "79aae"
 }
 
 # Create a resource group
