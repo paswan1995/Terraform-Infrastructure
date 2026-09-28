@@ -2986,5 +2986,42 @@ resource "aws_instance" "web" {
   }
 }
 
+#### outputs.tf 
+
+# public ip
+
+output "public_ip" {
+  value       = aws_instance.web.public_ip
+  description = "The public IP address of the EC2 instance"
+}
+
+# Output 2 - Private IP
+
+output "private_ip" {
+  value       = aws_instance.web.private_ip
+  description = "The private IP address of the EC2 instance"
+}
+
+# Output 3 - EC2 ID
+
+output "instance_id" {
+  value       = aws_instance.web.id
+  description = "The ID of the EC2 instance"
+}
+
+# Output 4 - VPC ID
+
+output "vpc_id" {
+  value       = aws_vpc.base.id
+  description = "The ID of the VPC"
+}
+
+# Output 5 - Security Group ID
+output "security_group_id" {
+  value       = aws_security_group.sg.id
+  description = "The ID of the security group"
+}
+
+
 ```
 
