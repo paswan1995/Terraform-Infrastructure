@@ -3025,3 +3025,2348 @@ output "security_group_id" {
 
 ```
 
+# How Variables Work
+
+```md
+variables.tf
+        │
+        ▼
+Defines the variable
+
+        │
+        ▼
+terraform.tfvars
+Gives the value
+
+        │
+        ▼
+main.tf
+Uses the value
+```
+
+# Stage 2
+
+***main.tf***
+
+```md
+
+resource "aws_vpc" "base" {
+
+  # CIDR block of the VPC
+  cidr_block = var.vpc_cidr
+
+  # Tags help identify resources in AWS Console
+  tags = {
+    Name = var.vpc_name
+  }
+
+}
+
+# This Internet Gateway connects the VPC to the Internet.
+
+resource "aws_internet_gateway" "igw" {
+
+  vpc_id = aws_vpc.base.id
+
+  tags = {
+
+    Name = var.aws_igw_name
+  }
+}
+
+# Create Public Route Table
+# This Route Table will be used by public subnets.
+
+
+resource "aws_route_table" "public" {
+  # Associate this Route Table with the VPC
+  vpc_id = aws_vpc.base.id
+
+  # Name shown in AWS Console
+
+  tags = {
+    Name = "ntier-public-rt"
+  }
+}
+
+# Create Public Route. This route sends all Internet traffic (0.0.0.0/0) to the Internet Gateway.
+
+resource "aws_route" "public_internet" {
+  # Attach this route to the Public Route Table
+  route_table_id = aws_route_table.public.id
+
+  # Any destination outside the VPC
+  destination_cidr_block = "0.0.0.0/0"
+
+  # Send the traffic to the Internet Gateway
+
+  gateway_id = aws_internet_gateway.igw.id
+
+}
+
+# Create Public Subnet 1 and associate it with the Public Route Table. This subnet will be used to launch public EC2 instances.
+
+resource "aws_subnet" "public_1" {
+
+  vpc_id                  = aws_vpc.base.id
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = var.availability_zone
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = var.public_subnet_name
+  }
+}
+
+
+# public subnet 2
+
+resource "aws_subnet" "public_2" {
+
+  vpc_id = aws_vpc.base.id
+
+  availability_zone = var.availability_zone_2
+
+  map_public_ip_on_launch = true
+
+  cidr_block = var.public_subnet_2_cidr
+
+  tags = {
+    Name = var.public_subnet_2_name
+  }
+}
+
+# public subnet 3
+
+resource "aws_subnet" "public_3" {
+
+  # this subnet belongs to this VPC 
+  vpc_id = aws_vpc.base.id
+
+  cidr_block = var.public_subnet_3_cidr
+
+  availability_zone = var.availability_zone_3
+
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = var.public_subnet_3_name
+  }
+}
+
+# Create aws route_table_association for public subnet 
+
+resource "aws_route_table_association" "public_1" {
+
+  subnet_id = aws_subnet.public_1.id
+
+  route_table_id = aws_route_table.public.id
+}
+
+
+resource "aws_route_table_association" "public_2" {
+  # Associate the Public Route Table with this subnet
+
+  subnet_id = aws_subnet.public_2.id
+
+  route_table_id = aws_route_table.public.id
+
+}
+
+
+
+
+
+# Create aws route_table_association for public subnet 3
+
+resource "aws_route_table_association" "public_3" {
+  # Associate the Public Route Table with this subnet
+
+  subnet_id = aws_subnet.public_3.id
+
+  route_table_id = aws_route_table.public.id
+
+}
+
+# Create Private Subnet 1
+# This subnet will be used to launch private EC2 instances.
+
+resource "aws_subnet" "private_1" {
+
+
+  vpc_id = aws_vpc.base.id
+
+  cidr_block = var.private_subnet_cidr
+
+  availability_zone = var.availability_zone
+
+  tags = {
+    Name = var.private_subnet_name
+  }
+}
+
+
+# create Private Subnet 2
+
+resource "aws_subnet" "private_2" {
+
+  vpc_id = aws_vpc.base.id
+
+  cidr_block = var.private_subnet_2_cidr
+
+  availability_zone = var.availability_zone_2
+
+  tags = {
+    Name = var.private_subnet_2_name
+  }
+
+
+}
+
+# create Private Subnet 3
+
+resource "aws_subnet" "private_3" {
+
+  vpc_id = aws_vpc.base.id
+
+  cidr_block = var.private_subnet_3_cidr
+
+  availability_zone = var.availability_zone_3
+
+  tags = {
+    Name = var.private_subnet_3_name
+  }
+}
+
+# Create Private Route Table 1
+
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.base.id
+
+  # Name shown in AWS Console
+
+  tags = {
+    Name = "ntier-private-rt"
+  }
+}
+
+# Create aws route_table_association for private subnet 1
+
+resource "aws_route_table_association" "private_1" {
+  subnet_id      = aws_subnet.private_1.id
+  route_table_id = aws_route_table.private.id
+
+}
+
+
+# Create aws route_table_association for private subnet 2
+resource "aws_route_table_association" "private_2" {
+  subnet_id      = aws_subnet.private_2.id
+  route_table_id = aws_route_table.private.id
+}
+
+# Create aws route_table_association for private subnet 3
+
+resource "aws_route_table_association" "private_3" {
+  subnet_id      = aws_subnet.private_3.id
+  route_table_id = aws_route_table.private.id
+}
+
+# NAT Gateway
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name = "ntier-nat-eip"
+  }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+
+  subnet_id = aws_subnet.public_1.id
+
+  tags = {
+    Name = "ntier-nat-gateway"
+  }
+}
+
+
+# aws route for private subnets to use NAT Gateway
+
+resource "aws_route" "private_nat" {
+  #Create a route inside the Private Route Table
+  route_table_id = aws_route_table.private.id
+
+  # Any destination outside the VPC
+  destination_cidr_block = "0.0.0.0/0"
+
+  # Send the traffic to the NAT Gateway / Inside the Private Route Table, if the destination is 0.0.0.0/0 (the internet), send the traffic to the NAT Gateway.
+  nat_gateway_id = aws_nat_gateway.nat.id
+
+}
+
+# security group for public EC2 instances
+
+resource "aws_security_group" "sg" {
+  name        = var.security_group_name
+  description = var.security_group_description
+  vpc_id      = aws_vpc.base.id
+
+  tags = {
+    Name = var.security_group_name
+
+  }
+}
+
+
+resource "aws_vpc_security_group_ingress_rule" "http" {
+  security_group_id = aws_security_group.sg.id
+  cidr_ipv4         = var.allowed_cidr
+  from_port         = var.http_port
+  to_port           = var.http_port
+  ip_protocol       = "tcp"
+
+}
+
+
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
+  security_group_id = aws_security_group.sg.id
+  cidr_ipv4         = var.allowed_cidr #Allow everyone from anywhere on the Internet.
+  from_port         = var.ssh_port
+  to_port           = var.ssh_port
+  ip_protocol       = "tcp"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "https" {
+  security_group_id = aws_security_group.sg.id
+  cidr_ipv4         = var.allowed_cidr
+  from_port         = var.https_port
+  to_port           = var.https_port
+  ip_protocol       = "tcp"
+}
+
+
+resource "aws_vpc_security_group_egress_rule" "all_outbound" {
+  security_group_id = aws_security_group.sg.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+}
+
+# key pair for EC2 instances
+
+resource "aws_key_pair" "terraform" {
+  key_name   = var.aws_key_name
+  public_key = file(var.public_key_path)
+}
+
+# ec2 instance for public subnet1 
+
+resource "aws_instance" "web" {
+  ami                         = var.ami_id # Amazon Linux 2 AMI (HVM), SSD Volume Type
+  instance_type               = var.instance_type
+  associate_public_ip_address = true
+  subnet_id                   = aws_subnet.public_1.id
+  vpc_security_group_ids      = [aws_security_group.sg.id]
+  key_name                    = aws_key_pair.terraform.key_name # Use the key pair created earlier"
+
+  tags = {
+    Name = var.instance_name
+  }
+}
+
+
+```
+***outputs.tf***
+
+```md
+# public ip
+
+output "public_ip" {
+  value       = aws_instance.web.public_ip
+  description = "The public IP address of the EC2 instance"
+}
+
+# Output 2 - Private IP
+
+output "private_ip" {
+  value       = aws_instance.web.private_ip
+  description = "The private IP address of the EC2 instance"
+}
+
+# Output 3 - EC2 ID
+
+output "instance_id" {
+  value       = aws_instance.web.id
+  description = "The ID of the EC2 instance"
+}
+
+# Output 4 - VPC ID
+
+output "vpc_id" {
+  value       = aws_vpc.base.id
+  description = "The ID of the VPC"
+}
+
+# Output 5 - Security Group ID
+output "security_group_id" {
+  value       = aws_security_group.sg.id
+  description = "The ID of the security group"
+}
+
+```
+
+***providers.tf***
+
+```md
+
+# providers 
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~>6.62.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+
+
+
+```
+
+***variables.tf***
+
+```md
+# This file contains the variables used in the Terraform configuration.
+
+variable "region" {
+  description = "The AWS region to deploy resources in"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "instance_type" {
+  description = "The type of EC2 instance to use for the web server"
+  type        = string
+  default     = "t3.micro"
+
+}
+
+variable "aws_key_name" {
+  description = "The name of the key pair to use for SSH access to the EC2 instance"
+  type        = string
+  default     = "terraform-key"
+
+}
+
+variable "ami_id" {
+  description = "The ID of the Amazon Machine Image (AMI) to use for the EC2 instance"
+  type        = string
+  default     = "ami-0b6d9d3d33ba97d99" # Amazon Linux 2 AMI (HVM), SSD Volume Type
+}
+
+
+variable "vpc_cidr" {
+  description = "The CIDR block for the VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+
+}
+
+variable "public_subnet_cidr" {
+  description = "The CIDR block for the public subnet"
+  type        = string
+  default     = "10.0.0.0/24"
+
+}
+
+variable "public_subnet_2_cidr" {
+  description = "The CIDR block for the second public subnet"
+  type        = string
+  default     = "10.0.1.0/24"
+
+}
+
+variable "public_subnet_3_cidr" {
+  description = "The CIDR block for the third public subnet"
+  type        = string
+  default     = "10.0.2.0/24"
+
+}
+
+variable "public_subnet_name" {
+  description = "The name of the public subnet"
+  type        = string
+  default     = "public-subnet_1"
+}
+
+variable "public_subnet_2_name" {
+  description = "The name of the second public subnet"
+  type        = string
+  default     = "public-subnet_2"
+}
+
+variable "public_subnet_3_name" {
+  description = "The name of the third public subnet"
+  type        = string
+  default     = "public-subnet-3"
+}
+
+
+variable "private_subnet_cidr" {
+  description = "The CIDR block for the private subnet"
+  type        = string
+  default     = "10.0.10.0/24"
+
+}
+
+variable "private_subnet_2_cidr" {
+  description = "The CIDR block for the second private subnet"
+  type        = string
+  default     = "10.0.11.0/24"
+}
+
+variable "private_subnet_3_cidr" {
+  description = "The CIDR block for the third private subnet"
+  type        = string
+  default     = "10.0.12.0/24"
+}
+
+variable "private_subnet_name" {
+  description = "The name of the private subnet"
+  type        = string
+  default     = "private-subnet-1"
+}
+
+variable "private_subnet_2_name" {
+  description = "The name of the second private subnet"
+  type        = string
+  default     = "private-subnet-2"
+}
+
+variable "private_subnet_3_name" {
+  description = "The name of the third private subnet"
+  type        = string
+  default     = "private-subnet-3"
+}
+
+
+variable "availability_zone" {
+  description = "The availability for the first subnet"
+  type        = string
+  default     = "us-east-1a"
+
+}
+
+variable "availability_zone_2" {
+  description = "The availability for the second subnet"
+  type        = string
+  default     = "us-east-1b"
+
+}
+
+variable "availability_zone_3" {
+  description = "The availability for the third subnet"
+  type        = string
+  default     = "us-east-1c"
+
+}
+
+variable "public_key_path" {
+  description = "The path to the public key file for the key pair"
+  type        = string
+  default     = "c:/Users/Paswa/.ssh/id_ed25519.pub"
+
+}
+
+variable "private_key_path" {
+  description = "The path to the private key file for the key pair"
+  type        = string
+  default     = "c:/Users/Paswa/.ssh/id_ed25519"
+
+}
+
+variable "instance_name" {
+  description = "The name of the EC2 instance"
+  type        = string
+  default     = "nginx-web-server"
+
+}
+
+variable "security_group_name" {
+  description = "The name of the security group"
+  type        = string
+  default     = "allow_all_traffic"
+}
+
+variable "security_group_description" {
+  description = "The description of the security group"
+  type        = string
+  default     = "Allow all inbound and outbound traffic"
+}
+
+variable "http_port" {
+  description = "The port for HTTP traffic"
+  type        = number
+  default     = 80
+}
+
+variable "https_port" {
+  description = "The port for HTTPS traffic"
+  type        = number
+  default     = 443
+}
+
+
+variable "ssh_port" {
+  description = "The port for ssh traffic"
+  type        = number
+  default     = 22
+
+}
+
+#One production note for later: allowed_cidr = "0.0.0.0/0" means SSH is open to the entire Internet-
+# -For a real production environment, SSH would normally be restricted to a trusted source or replaced with another access mechanism-
+# -Don't change it now; we're learning the variable mechanism first.
+
+variable "allowed_cidr" {
+  description = "The CIDR block to allow inbound traffic from"
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
+
+variable "egress_rule_all" {
+  description = "the egress rule for the security group to allow all outbound traffic"
+  type        = string
+  default     = "-1"
+}
+
+
+variable "vpc_name" {
+  description = "The name of the VPC"
+  type        = string
+  default     = "ntier-vpc"
+
+}
+
+variable "aws_igw_name" {
+  description = "The name of the Internet Gateway"
+  type        = string
+  default     = "ntier-igw"
+}
+
+
+
+```
+![Preview](Images/tf38.png)
+![Preview](Images/tf39.png)
+---
+
+# Activity-3 — Complete structure
+
+
+* Eventually our folder will look like this:
+
+```sh
+main.tf
+variables.tf
+outputs.tf
+network.tf
+provider.tf
+terraform.tf
+security.tf
+sample.tfvar
+locals.tf
+```
+
+***Step 1 — variables.tf***
+
+```sh
+# public subnet
+
+variable "public_subnets" {
+  type = list(object({
+    name = string
+    cidr = string
+    az   = string
+  }))
+}
+```
+
+***Step 2 — What Activity-3 will create***
+
+* network.tf creates:
+
+```sh
+VPC
+│
+├── Internet Gateway
+│
+├── Public Route Table
+│   ├── Public Subnet 1
+│   ├── Public Subnet 2
+│   └── ...
+│
+└── Private Route Table
+    ├── Private Subnet 1
+    ├── Private Subnet 2
+    └── ...
+```
+
+***Step 3 — Create terraform.tf***
+
+* What this does: It tells Terraform 
+```
+Terraform version
+       +
+AWS provider
+       +
+AWS provider source
+       +
+minimum provider version
+```
+
+```sh 
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.82.2"
+    }
+  }
+
+  required_version = ">= 1.10.0"
+}
+```
+
+***Step 4 — Create providers.tf***
+
+```sh
+# Configure the AWS Provider
+# This means the AWS provider gets its region from:
+# Therefore, we'll need a region variable.
+
+provider "aws" {
+    region = "us-east-1"
+}
+```
+***Step 5 — Add the basic variables***
+
+```sh
+variable "region" {
+  type        = string
+  description = "AWS region"
+  default     = "ap-south-1"
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "VPC CIDR block"
+}
+
+variable "network_name" {
+  type        = string
+  description = "Name of the network"
+  default     = "ntier"
+}
+
+variable "public_subnets" {
+  type = list(object({
+    name = string
+    cidr = string
+    az   = string
+  }))
+
+  description = "Public subnet configuration"
+}
+```
+
+---
+
+1. count = local.public_subnet_count != 0 ? 1 : 0
+* means: 
+
+```sh
+Are there any public subnets?
+        │
+       YES
+        │
+        ▼
+Create 1 public route table
+```
+* If there are no public subnets:
+
+```sh
+public_subnet_count = 0
+        │
+        ▼
+Create 0 route tables
+```
+
+* Understand the ? : syntax 
+* This is called a ternary expression: `condition ? value_if_true : value_if_false`
+* Our condition is: `local.public_subnet_count != 0`
+
+* So: 
+
+```
+If public subnet count is not 0 → 1
+Otherwise                      → 0
+```
+* Why only 1 route table?
+* Because later we will have: 
+
+```
+Public Subnet 1 ──┐
+Public Subnet 2 ──┼──> One Public Route Table
+Public Subnet 3 ──┘
+```
+
+# Explanation
+
+* Terraform count and Ternary — Very Simple Explanation
+1. What are we trying to do?
+    * We have public subnets.
+    * For example:
+```
+Public Subnet 1
+Public Subnet 2
+Public Subnet 3
+```
+* All these subnets need to use a Public Route Table.
+* We want:
+
+```
+3 Public Subnets
+      │
+      ├──────────────┐
+      │              │
+      ▼              ▼
+   Subnet 1       Route Table
+   Subnet 2       (only 1)
+   Subnet 3
+```
+
+* so : We need one route table, not three route tables.
+
+2. First understand public_subnet_count
+
+* In our locals.tf we have: 
+
+```tf
+locals {
+    anywhere = "0.0.0.0/0"
+    public_subnet_count = length(var.public_subnets)
+}
+```
+
+* The important part is: `length(var.public_subnets)`
+
+* length() simply means: `Count how many items are inside the list.`
+
+* For example:
+
+```
+public_subnets = [
+    {
+        name = "web-1"
+        cidr = "10.10.10.0/24"
+        az   = "us-east-1a" 
+    },
+
+    {
+        name = "web-1"
+        cidr = "10.10.11.0"
+        az   = "us-east-1b"
+    }
+]
+```
+
+* There are 2 objects.
+* Therefore: `public_subnet_count = 2`
+
+
+3. Now understand this condition
+
+* `local.publiv_subnet_count != 0`
+* Read it in normal English: `Is the number of public subnets not equal to zero?`
+* `!= means: not equal to`
+
+* So: `2 != 0` is: `TRUE`
+* Because 2 is not zero.
+
+* But: `0 != 0` is: `FALSE`
+
+4. Now understand ? :
+
+* This is called a ternary expression.
+    * The basic structure is: `condition ? if_true : if_false`
+    * Think of it like a simple question: `QUESTION ? YES : NO`
+    * For example:
+        * `Is it raining? ? Take umbrella : Don't take umbrella`
+    
+    * In Terraform:
+        * `local.public_subbnet_count != 0 ? 1 : 0`
+
+* means:
+
+```
+Are there public subnets?
+
+       YES → 1
+       NO  → 0
+```
+* That's all 
+
+5. Put everything together
+
+* Our complete line is:
+* `count = local.public_subnet_count != 0 ? 1 : 0`
+* Read it like this: `If there is at least one public subnet, create 1 route table. Otherwise create 0 route tables.`
+    
+6. Example 1 — We have 2 public subnets
+
+* suppose: `public_subnet_count = 2`
+* Terraform checks: `2 != 0` we can read like: `2 is not equal to 0.`
+* Answer: `TRUE`
+
+* So: `TRUE → 1`
+
+* Therefore: `count = 1`
+
+* Terraform creates: `1 Public Route Table`
+---
+
+7. Example 2 — We have 0 public subnets
+
+* Suppose: `public_subnet_count = 0`
+* Terraform checks: `0 != 0`
+* Answer: `FALSE`
+* So: `FALSE → 0`
+* Therefore: `count = 0`
+
+* Terraform creates: `0 Public Route Tables`
+---
+
+8. Why don't we create 3 route tables?
+
+* Suppose we have: 
+```
+Public Subnet 1
+Public Subnet 2
+Public Subnet 3
+```
+
+* A beginner might think:
+
+```
+Subnet 1 → Route Table 1
+Subnet 2 → Route Table 2
+Subnet 3 → Route Table 3
+```
+
+* But we don't need that.
+* We can have:
+```
+             ┌── Public Subnet 1
+             │
+One Public ──┼── Public Subnet 2
+Route Table  │
+             └── Public Subnet 3
+```
+
+* All three public subnets can use the same route table.
+
+* Therefore: 
+```
+3 Public Subnets
+       │
+       ▼
+1 Public Route Table
+
+```
+* This is why: `count = local.public_subnet_count != 0 ? 1 : 0`
+* does not say: `count = local.public_subnet_count`
+* If we did that: `3 public subnets → 3 route tables`
+---
+
+9. The most important thing to remember
+* Don't try to memorize the Terraform syntax yet.
+    * Just remember this sentence:
+        * `If public subnets exist, create one public route table. If they don't exist, create zero.`
+    * Then the Terraform code: `count = local.public_subnet_count != 0 ? 1 : 0`
+    * is simply the Terraform way of writing that sentence.
+
+---
+
+# Simple cheat sheet
+
+```
+| Code       | Simple meaning                           |
+|------------|------------------------------------------|
+| `length()` | Count items                              |
+| `!=`       | Not equal to                             |
+| `?`        | If true                                  |
+| `:`        | Otherwise                                |
+| `count`    | How many copies of the resource to create|
+| `? 1 : 0`  | Create 1 or create 0                     |
+```
+---
+
+* Final picture
+
+```
+var.public_subnets
+        │
+        ▼
+length()
+        │
+        ▼
+public_subnet_count
+        │
+        ▼
+Is count != 0?
+     /       \
+   YES        NO
+    │          │
+    ▼          ▼
+ count = 1   count = 0
+    │          │
+    ▼          ▼
+1 route      0 route
+table        tables
+```
+
+* One key point: count is controlling how many route-table resources Terraform creates. It is not saying how many subnets the route table can handle.
+
+* Suppose when you see: `local.public_subnet_count != 0`
+* read it as: `is the number of public subnets not equal to zero`
+---
+
+* `cidr_block = var.public_subnets[count.index].cidr`
+* What does this mean?
+    * We have our variable: `var.public_subnet`
+    * It contains multiple subnet objects.
+* For example:
+
+```tf
+
+public_subnets = [
+    {
+        name = "web-1"
+        cidr_block = "10.10.10.0/24"
+        az = "us-east-1a"
+    },
+
+    {
+        name = "web-2"
+        cidr_block = "10.10.11.0/24"
+        az = "us-east-1b"
+    }
+]
+
+```
+* Terraform gives each item an index: 
+```
+index 0 → web-1
+index 1 → web-2
+```
+* so : `count.index`
+
+* means: which subnet currently are creating?
+* Therefore: `var.public_subnet[count.index].cidr`
+
+* means: `go to the subnet object and take its cidr value.
+
+***Example***
+* for the 1st subnet: `count.index`
+
+* Terraform gets:
+
+```
+var.public_subnets[0].cidr
+        ↓
+10.10.10.0/24
+```
+* For the second: `count.index = 1`
+* Terraform gets: 
+```
+var.public_subnets[1].cidr
+        ↓
+10.10.11.0/24
+```
+
+* So finally:
+```
+public_subnets list
+       │
+       ├── [0] → 10.10.10.0/24 → AWS Subnet 1
+       │
+       └── [1] → 10.10.11.0/24 → AWS Subnet 2
+```
+---
+
+# Step 8 — Add the tags to the Public Subnet
+
+* Now we add only the name tag.
+* Update your block to:
+```sh
+# Public Subnet
+
+resource "aws_subnet" "public" {
+    vpc_id            = aws_vpc.base.id
+    cidr_block        = var.public_subnets[count.index].cidr
+    availability_zone = var.public_subnets[count.index].az
+    count             = local.public_subnet_count
+
+    tags = {
+        Name = var.public_subnets[count.index].name
+    }
+}
+```
+* What does this do?
+* Your public_subnets objects have a name:
+
+```sh
+public_subnets = [
+  {
+    name = "web-1"
+    cidr = "10.10.10.0/24"
+    az   = "us-east-1a"
+  },
+  {
+    name = "web-2"
+    cidr = "10.10.11.0/24"
+    az   = "us-east-1b"
+  }
+]
+```
+
+* Terraform uses: `var.public_subnets[count.index].name`
+* So:
+```
+count.index = 0
+       ↓
+web-1
+```
+* and
+
+```sh
+count.index = 1
+       ↓
+web-2
+```
+* AWS will therefore show:
+```sh
+Public Subnet 1 → web-1
+Public Subnet 2 → web-2
+```
+---
+
+# Step 9 — Associate Public Subnets with the Public Route Table
+
+* Now we connect: `Public Subnet → Public Route Table`
+* Add this below your public subnet resource in `network.tf`:
+
+```sh
+# Public Route Table Association
+
+resource "aws_route_table_association" "public" {
+    count          = local.public_subnet_count
+    subnet_id      = aws_subnet.public[count.index].id
+    route_table_id = aws_route_table.public[0].id
+}
+```
+
+* Understand it simply
+* we have 
+```sh
+Public Subnet 1 ──┐
+Public Subnet 2 ──┼──> Public Route Table
+Public Subnet 3 ──┘
+```
+* count 
+* `count = local.public_subnet_count`
+* If we have 2 public subnets: `count = 2`
+
+* Terraform creates 2 associations.
+
+* `subnet_id`
+    * `subnet_id = aws_subnet.public[count.index].id `
+    * This means:
+        *  Which public subnet should I connect?
+* For the first:
+```
+count.index = 0
+        ↓
+aws_subnet.public[0]
+```
+* For the second:
+
+```
+count.index = 1
+        ↓
+aws_subnet.public[1]
+```
+
+* route_table_id
+* `route_table_id = aws_route_table.public[0].id`
+* This is important.
+* Remember our route table has: `count = local.public_subnet_count != 0 ? 1 : 0`
+* So we deliberately created only one public route table.
+* Therefore: `aws_route_table.public[0]`
+* means: `Give me the first—and only—public route table.`
+
+***Final picture***
+
+```sh
+                 Internet
+                    ▲
+                    │
+          Internet Gateway
+                    ▲
+                    │
+          Public Route Table
+                    ▲
+             ┌──────┴──────┐
+             │             │
+        Public Subnet 1  Public Subnet 2
+```
+
+---
+
+# Step 10 — Add `private_subnets` to `variables.tf`
+
+* Open Activity-3/variables.tf.
+* we currently have:
+```sh
+variable "public_subnets" {
+  type = list(object({
+    name = string
+    cidr = string
+    az   = string
+  }))
+}
+```
+
+* and below we have 
+
+```sh
+variable "private_subnets" {
+  type = list(object({
+    name = string
+    cidr = string
+    az   = string
+  }))
+  description = "private subnets"
+}
+```
+
+* Why are we doing this?
+* Earlier we created: `2 public_subnets`
+
+* Now we create: `2 private_subnets`
+
+* for something like: `app-1 and app-2`
+
+* Each private subnet also needs three pieces of information:
+```sh
+name
+cidr
+az
+```
+
+* For example:
+
+```sh
+private_subnets = [
+  {
+    name = "app-1"
+    cidr = "10.10.0.0/24"
+    az   = "us-east-1a"
+  },
+  {
+    name = "app-2"
+    cidr = "10.10.1.0/24"
+    az   = "us-east-1b"
+  }
+]
+```
+
+---
+
+# Step 11 — Add the Private Subnet Count
+
+* Now we update `locals.tf.`
+* You currently have:
+
+```sh
+locals {
+  anywhere            = "0.0.0.0/0"
+  public_subnet_count = length(var.public_subnets)
+}
+```
+
+* Add one new line:
+
+```sh
+locals {
+  anywhere             = "0.0.0.0/0"
+  public_subnet_count  = length(var.public_subnets)
+  private_subnet_count = length(var.private_subnets)
+}
+```
+* What does this mean?
+* Exactly like the public subnet count: `private_subnet_count = length(var.private_subnets)`
+* means: `Count how many private subnet objects are inside var.private_subnets.`
+
+* For example:
+```sh
+private_subnets = [
+  {
+    name = "app-1"
+    cidr = "10.10.0.0/24"
+    az   = "us-east-1a"
+  },
+  {
+    name = "app-2"
+    cidr = "10.10.1.0/24"
+    az   = "us-east-1b"
+  }
+]
+```
+* There are 2 objects, so: `private_subnet_count = 2`
+
+* Why do we need this?
+* Later, when we create: `resource "aws_subnet" "private"`
+* we will use: `count = local.private_subnet_count`
+* So: 
+```sh
+2 private subnet objects
+        ↓
+2 AWS private subnets
+```
+
+# Step 12 — Create the Private Subnet Resource
+
+* Now we create the actual AWS private subnets.  
+* Add this below your public subnet resources in network.tf:
+
+```sh
+# Private Subnet
+
+resource "aws_subnet" "private" {
+    vpc_id            = aws_vpc.base.id
+    count             = local.private_subnet_count
+    cidr_block        = var.private_subnets[count.index].cidr
+    availability_zone = var.private_subnets[count.index].az
+}
+```
+
+* Understand the important parts
+  * count: `count = local.private_subnet_count`
+
+* If you have: `private_subnet_count = 2`
+* Terraform creates:
+```
+aws_subnet.private[0]
+aws_subnet.private[1]
+```
+
+* cidr_block: `cidr_block = var.private_subnets[count.index].cidr`
+* Terraform takes the CIDR from the current private subnet object.
+* For example:
+
+```
+private_subnets[0].cidr
+        ↓
+10.10.0.0/24
+```
+
+* and 
+
+```
+private_subnets[1].cidr
+        ↓
+10.10.1.0/24
+```
+
+* availability_zone: `availability_zone = var.private_subnets[count.index].az`
+* Similarly:
+```
+private_subnets[0].az
+        ↓
+us-east-1a
+```
+* and:
+```
+private_subnets[1].az
+        ↓
+us-east-1b
+```
+
+
+* So the flow is:
+```
+private_subnets
+      │
+      ├── [0] → app-1 → 10.10.0.0/24 → us-east-1a
+      │
+      └── [1] → app-2 → 10.10.1.0/24 → us-east-1b
+```
+---
+
+# Step 13 — Add a Name Tag to the Private Subnets
+
+* 
+
+```sh
+# Private Subnet
+
+resource "aws_subnet" "private" {
+    vpc_id            = aws_vpc.base.id
+    count             = local.private_subnet_count
+    cidr_block        = var.private_subnets[count.index].cidr
+    availability_zone = var.private_subnets[count.index].az
+
+    tags = {
+        Name = var.private_subnets[count.index].name
+    }
+}
+```
+
+* What does this do?
+* It takes the name from each object.
+* For example:
+```sh
+private_subnets = [
+  {
+    name = "app-1"
+    cidr = "10.10.0.0/24"
+    az   = "us-east-1a"
+  },
+  {
+    name = "app-2"
+    cidr = "10.10.1.0/24"
+    az   = "us-east-1b"
+  }
+]
+```
+
+* Terraform creates:
+```sh 
+Private Subnet 1 → app-1
+Private Subnet 2 → app-2
+```
+
+---
+
+# Step 14 — Create the Private Route Table
+
+* Now we create the private route table.
+* private subnet resource in network.tf:
+
+```sh
+# Private Route Table
+
+resource "aws_route_table" "private" {
+    count  = local.private_subnet_count != 0 ? 1 : 0
+    vpc_id = aws_vpc.base.id
+
+    tags = {
+        Name = "${var.network_name}-private"
+    }
+}
+```
+
+* Understand it simply. We already created:
+```sh
+VPC
+├── Internet Gateway
+├── Public Route Table
+├── Public Subnets
+└── Private Subnets
+```
+
+* Now we're creating: `Private Route Table`
+
+* Just like the public subnets need a route table, the private subnets also need a route table.
+* If we have: 
+```
+Private Subnet 1
+Private Subnet 2
+```
+
+* we can use:
+```
+        One Private Route Table
+             │
+       ┌─────┴─────┐
+       ▼           ▼
+ Private 1     Private 2
+
+```
+
+* That's why we use: 
+  * `count = local.private_subnet_count != 0 ? 1 : 0`
+  * It means:
+    * If private subnets exist → create 1 private route table.
+    * If no private subnets exist → create 0.
+
+* One important difference from the public route table
+* Our public route table has:
+```
+route {
+    cidr_block = local.anywhere
+    gateway_id = aws_internet_gateway.gw.id
+}
+```
+# Step 15 — Associate Private Subnets with the Private Route Table
+
+* Now we connect: `Private Subnet → Private Route Table`
+
+* Add this below the private route table:
+
+```
+# Private Route Table Association
+
+resource "aws_route_table_association" "private" {
+    count          = local.private_subnet_count
+    subnet_id      = aws_subnet.private[count.index].id
+    route_table_id = aws_route_table.private[0].id
+}
+```
+
+* Understand it simply
+
+* If we have:
+```
+Private Subnet 1
+Private Subnet 2
+```
+* and one private route table:
+
+```
+             Private Route Table
+                    │
+             ┌──────┴──────┐
+             ▼             ▼
+       Private Subnet 1  Private Subnet 2
+```
+
+* count 
+  * `count = local.private_subnet_count`
+
+* If there are 2 private subnets:
+  * `count = 2`
+
+* Terraform creates 2 associations.
+  * subnet_id: `subnet_id = aws_subnet.private[count.index].id`
+  * This connects each private subnet.
+
+* route_table_id: `route_table_id = aws_route_table.private[0].id`
+
+* Remember, we created one private route table: `count = local.private_subnet_count != 0 ? 1 : 0`
+* So [0] refers to that one route table.
+* Current network structure
+
+* The Internet Gateway is the door between the VPC and the Internet.
+
+
+```sh
+
+                              INTERNET
+                                  │
+                                  │
+                                  ▼
+                    ┌─────────────────────────┐
+                    │   Internet Gateway      │
+                    │   aws_internet_gateway  │
+                    │          .gw            │
+                    └────────────┬────────────┘
+                                 │
+                                 │
+┌────────────────────────────────┴────────────────────────────────┐
+│                         AWS VPC                                 │
+│                    aws_vpc.base                                 │
+│                                                                 │
+│   VPC CIDR: var.vpc_cidr                                        │
+│   Name: var.network_name                                        │
+│                                                                 │
+│       ┌───────────────────────────┐                             │
+│       │     PUBLIC SIDE           │                             │
+│       │                           │                             │
+│       │  ┌─────────────────────┐  │                             │
+│       │  │ Public Route Table  │  │                             │
+│       │  │                     │  │                             │
+│       │  │ 0.0.0.0/0           │  │                             │
+│       │  │       ↓             │  │                             │
+│       │  │ Internet Gateway    │  │                             │
+│       │  └──────────┬──────────┘  │                             │
+│       │             │             │                             │
+│       │      ┌──────┴──────┐      │                             │
+│       │      │             │      │                             │
+│       │      ▼             ▼      │                             │
+│       │  ┌────────┐   ┌────────┐  │                             │
+│       │  │Public  │   │Public  │  │                             │
+│       │  │Subnet 1│   │Subnet 2│  │                             │
+│       │  │        │   │        │  │                             │
+│       │  │ web-1  │   │ web-2  │  │                             │
+│       │  └────────┘   └────────┘  │                             │
+│       │                           │                             │
+│       └───────────────────────────┘                             │
+│                                                                 │
+│       ┌───────────────────────────┐                             │
+│       │     PRIVATE SIDE          │                             │
+│       │                           │                             │
+│       │  ┌─────────────────────┐  │                             │
+│       │  │ Private Route Table │  │                             │
+│       │  │                     │  │                             │
+│       │  │     No route yet    │  │                             │
+│       │  │      ← Next step    │  │                             │
+│       │  └──────────┬──────────┘  │                             │
+│       │             │             │                             │
+│       │      ┌──────┴──────┐      │                             │
+│       │      │             │      │                             │
+│       │      ▼             ▼      │                             │
+│       │  ┌────────┐   ┌────────┐  │                             │
+│       │  │Private │   │Private │  │                             │
+│       │  │Subnet 1│   │Subnet 2│  │                             │
+│       │  │        │   │        │  │                             │
+│       │  │ app-1  │   │ app-2  │  │                             │
+│       │  └────────┘   └────────┘  │                             │
+│       │                           │                             │
+│       └───────────────────────────┘                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+```
+
+# Step 16 — Add the Private Route
+
+* Now we need to decide where private subnet traffic should go.
+* At this point, our private route table exists, but it has no route.
+* For the instructor's Activity-3 code, the private route table initially remains without an Internet/NAT route. The next network component in the source sequence is the NAT Gateway.
+* So we should not add a private 0.0.0.0/0 route yet. That route will point to the NAT Gateway after we create it.
+
+* Current flow
+```
+Private Subnet
+      │
+      ▼
+Private Route Table
+      │
+      │
+      └── No default route yet
+```
+
+* The target flow we are building is:
+```
+Private Subnet
+      │
+      ▼
+Private Route Table
+      │
+      │ 0.0.0.0/0
+      ▼
+NAT Gateway
+      │
+      ▼
+Internet Gateway
+      │
+      ▼
+Internet
+```
+
+* Important
+* We have not created the NAT Gateway yet, so don't add this:
+
+* Current structure is 
+
+```sh
+VPC
+│
+├── Internet Gateway
+│
+├── Public Route Table
+│   │
+│   └── 0.0.0.0/0 → Internet Gateway
+│
+├── Public Subnets
+│   ├── Public Subnet 1
+│   └── Public Subnet 2
+│
+├── Public Route Table Association
+│   ├── Public Subnet 1 → Public Route Table
+│   └── Public Subnet 2 → Public Route Table
+│
+├── Private Subnets
+│   ├── Private Subnet 1
+│   └── Private Subnet 2
+│
+├── Private Route Table
+│
+└── Private Route Table Association
+    ├── Private Subnet 1 → Private Route Table
+    └── Private Subnet 2 → Private Route Table
+```
+
+---
+
+# Step 17 — Add the Web Security Group Variable
+
+* Now we move to the Security Group part of the Activity-3.
+* First, we only define the variable. We will create the actual security group resource later.
+
+* Open `variables.tf`.
+* Add
+```sh
+variable "web_security_group" {
+  type = object({
+    name        = optional(string, "web-sg")
+    description = optional(string, "This is security group for web server")
+
+    rules = list(object({
+      cidr_ipv4   = optional(string, "0.0.0.0/0")
+      from_port   = number
+      to_port     = number
+      ip_protocol = optional(string, "tcp")
+    }))
+  })
+
+  description = "web security group"
+}
+```
+* One small thing to understand
+* Rules: `rules = list(object({` 
+  * means: `rules is a list, and every item in that list must be an object with these fields.`
+  * For example:
+```sh
+security_group = {
+  rules = [
+    {
+      from_port = 22
+      to_port   = 22
+    },
+    {
+      from_port = 5000
+      to_port   = 5000
+    }
+  ]
+}
+```
+
+* Think of it as:
+```sh
+security_group
+      │
+      ├── name
+      ├── description
+      │
+      └── rules
+           │
+           ├── Rule 1
+           │    ├── from_port
+           │    ├── to_port
+           │    ├── cidr_ipv4
+           │    └── ip_protocol
+           │
+           └── Rule 2
+                ├── from_port
+                ├── to_port
+                ├── cidr_ipv4
+                └── ip_protocol
+```
+
+
+* Don't worry about the whole block yet
+* The important idea is 
+
+```sh
+web_security_group
+       │
+       ├── name
+       ├── description
+       └── rules
+             │
+             ├── from_port
+             ├── to_port
+             ├── cidr_ipv4
+             └── ip_protocol
+```
+* For example, later the instructor's sample.tfvars provides:
+```
+web_security_group = {
+  rules = [{
+    from_port = 22
+    to_port   = 22
+  }, {
+    from_port = 5000
+    to_port   = 5000
+  }]
+}
+```
+
+* This means the web security group will have rules for:
+
+```
+Port 22
+Port 5000
+```
+
+# Step 17 — Complete Security Group Setup
+* We already created the web security-group variable. Now let's complete the security-group section according to the instructor's Activity-3 structure.
+
+1. variables.tf
+* Add the database security group variable below your existing security_group variable:
+```sh
+variable "db_security_group" {
+  type = object({
+    name        = optional(string, "db-sg")
+    description = optional(string, "Security group for database server")
+
+    rules = list(object({
+      cidr_ipv4   = optional(string, "0.0.0.0/0")
+      from_port   = number
+      to_port     = number
+      ip_protocol = optional(string, "tcp")
+    }))
+  })
+
+  description = "database security group"
+}
+```
+
+Now our variables represent two security groups:
+```
+security_group
+      │
+      └── Web servers
+
+db_security_group
+      │
+      └── Database servers
+```
+
+2. Create security.tf
+
+```sh
+# Web security group
+
+resource "aws_security_group" "web_sg" {
+    vpc_id = aws_vpc.base.id 
+    name = var.web_security_group.name
+    description = var.web_security_group.description
+
+    tags = {
+        Name = var.web_security_group.name
+    }
+
+    depends_on = [aws_vpc.base]
+}
+
+# Ingress rules for web security group
+
+resource "aws_vpc_security_group_ingress_rule" "web_sg_ingress" {
+    count = length(var.web_security_group.rules)
+
+    security_group_id = aws_security_group.web-sg.id 
+    cidr_ipv4 = var.web_security_group.rules[count.index].cidr_ipv4
+    from_port = var.web_security_group.rules[count.index].from_port
+    to_port = var.web_security_group.rules[count.index].to_port
+    ip_protocol = var.web_security_group.rules[count.index].ip_protocol
+}
+
+
+# Egress rules for web security group
+
+resource "aws_vpc_security_group_egress_rule" "default" {
+    security_group_id = aws_security_group.web_sg.id 
+    cidr_ipv4 = local.anywhere
+    ip_protocol = -1
+
+}
+
+
+# Database security group
+
+resource "aws_security_group" "db"{
+    vpc_id = aws_vpc.base.id
+    name = var.db_security_group.name
+    description = var.db_security_group.description
+
+    tags = {
+        Name = var.db_security_group.name
+    }
+    depends_on = [aws_vpc.base]
+
+}
+
+# Ingress rules for database security group
+
+resource "aws_vpc_security_group_ingress_rule" "db_sg_ingress" {
+    security_group_id = aws_security_group.db.id
+    cidr_ipv4 = var.db_security_group.rules[0].cidr_ipv4
+    from_port = var.db_security_group.rules[0].from_port
+    to_port = var.db_security_group.rules[0].to_port
+    ip_protocol = var.db_security_group.rules[0].ip_protocol
+}
+
+
+# Egress rules for database security group
+
+resource "aws_vpc_security_group_egress_rule" "default" {
+    security_group_id = aws_security_group.db.id
+    cidr_ipv4 = local.anywhere
+    ip_protocol = -1 # Allow all outbound traffic 
+
+}
+
+
+```
+
+3. Understand the architecture
+
+* We now have:
+
+```sh
+                         VPC
+                          │
+             ┌────────────┴────────────┐
+             │                         │
+             ▼                         ▼
+       Web Security Group       DB Security Group
+             │                         │
+             │                         │
+             ▼                         ▼
+        Web Servers               Database
+```
+
+* The important thing is that we have two different security groups.
+* Web Security Group
+```
+Web Security Group
+       │
+       ├── Inbound rules
+       │     ├── Port 22
+       │     └── Port 5000
+       │
+       └── Outbound
+             └── All
+```
+
+*  Database Security Group
+
+```
+DB Security Group
+       │
+       ├── Inbound rules
+       │     └── Port 3306
+       │
+       └── Outbound
+             └── All
+```
+
+* The exact ports will come from your `.tfvars` values.
+
+4. The important Terraform concept here
+
+* This is the same pattern we already learned with subnets:
+
+* `count = length(var.security_group.rules)`
+* Suppose:
+
+```
+rules = [
+  {
+    from_port = 22
+    to_port = 22
+  },
+
+  {
+    from_port = 5000
+    to_port = 5000
+
+  }
+]
+```
+* There are 2 rule objects.
+* Therefore: `length(rules) = 2`
+
+* Terraform creates:
+```
+aws_vpc_security_group_ingress_rule.base[0]
+aws_vpc_security_group_ingress_rule.base[1]
+```
+*  And:
+```
+var.security_group.rules[count.index]
+```
+
+* means:
+```
+Rule 0 → first rule
+Rule 1 → second rule
+```
+* This is the same `count.index` concept you learned with: `var.public_subnets[count.index]`
+
+5. One important line
+* `ip_protocol = -1` 
+  * in the egress rule.
+  * For this configuration, `-1` means: `Allow all IP protocols.`
+
+* And: `cidr_ipv4 = local.anywhere`
+* means: `0.0.0.0/0`
+
+* So the egress rule is essentially:
+```
+Allow outbound traffic
+from this security group
+to anywhere
+for all protocols.
+```
+
+6. Our current Activity-3 architecture
+
+```sh
+                              INTERNET
+                                  │
+                                  ▼
+                         Internet Gateway
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │           VPC             │
+                    │                           │
+                    │     PUBLIC               │
+                    │       │                   │
+                    │       ▼                   │
+                    │ Public Route Table        │
+                    │       │                   │
+                    │   ┌───┴────┐              │
+                    │   ▼        ▼              │
+                    │ Public   Public           │
+                    │ Subnet   Subnet            │
+                    │   │        │              │
+                    │   └───┬────┘              │
+                    │       │                   │
+                    │   Web Security            │
+                    │      Group                │
+                    │                           │
+                    │     PRIVATE              │
+                    │       │                   │
+                    │       ▼                   │
+                    │ Private Route Table       │
+                    │       │                   │
+                    │   ┌───┴────┐              │
+                    │   ▼        ▼              │
+                    │ Private  Private          │
+                    │ Subnet   Subnet            │
+                    │   │        │              │
+                    │   └───┬────┘              │
+                    │       │                   │
+                    │   DB Security             │
+                    │      Group                │
+                    │                           │
+                    └───────────────────────────┘
+```
+* This is much closer to the real multi-tier AWS network structure we are learning.
+---
+
+* Let's understand our sample.tfvars
+  * Think of  `sample.tfvars` as our input/value file.
+  * Our variables.tf defines: `"What information do I need?"`
+  * Our sample.tfvars provides: `"Here are the actual values."`
+
+1. Region 
+  * `region = "us-east-1"` 
+  * We are telling Terraform: Create our AWS infrastructure in Veginia region.
+
+2. VPC
+
+```sh
+vpc_cidr     = "10.10.0.0/16"
+network_name = "ntier"`
+```
+* So our VPC will have:
+
+```
+Name → ntier
+CIDR → 10.10.0.0/16
+```
+
+3. Private Subnets
+
+```sh
+private_subnets = [
+  {
+    name = "app-1"
+    cidr = "10.10.0.0/24"
+    az   = "us-east-1a"
+  },
+  {
+    name = "app-2"
+    cidr = "10.10.1.0/24"
+    az   = "us-east-1b"
+  }
+]
+```
+* We have 2 private subnet objects.
+* Therefore: `private_subnet_count = 2`
+
+*  Our Terraform code creates:
+```sh
+Private Subnet 1
+    Name → app-1
+    CIDR → 10.10.0.0/24
+    AZ   → us-east-1a
+
+Private Subnet 2
+    Name → app-2
+    CIDR → 10.10.1.0/24
+    AZ   → us-east-1b
+```
+---
+
+4. Public Subnets
+
+```sh
+public_subnets = [
+  {
+    name = "web-1"
+    cidr = "10.10.10.0/24"
+    az   = "us-east-1a"
+  },
+  {
+    name = "web-2"
+    cidr = "10.10.11.0/24"
+    az   = "us-east-1b"
+  }
+]
+```
+
+* Again, we have 2 objects.
+* So: `public_subnet_count = 2`
+
+* Our Terraform creates:
+
+```
+Public Subnet 1
+    Name → web-1
+    CIDR → 10.10.10.0/24
+    AZ   → us-east-1a
+
+Public Subnet 2
+    Name → web-2
+    CIDR → 10.10.11.0/24
+    AZ   → us-east-1b
+```
+
+5. Web Security Group
+
+```
+security_group = {
+  rules = [
+    {
+      from_port = 22
+      to_port   = 22
+    },
+    {
+      from_port = 5000
+      to_port   = 5000
+    }
+  ]
+}
+```
+
+* We have two rules:
+```
+Rule 1 → Port 22
+Rule 2 → Port 5000
+```
+
+* Because our variable has: `cidr_ipv4 = optional(string, "0.0.0.0/0")`
+* and: `ip_protocol = optional(string, "tcp")`
+* we don't have to write those values every time.
+* Terraform uses the defaults:
+```
+CIDR     → 0.0.0.0/0
+Protocol → tcp
+```
+
+* So conceptually:
+```
+Web Security Group
+       │
+       ├── TCP 22
+       │
+       └── TCP 5000
+```
+
+6. Database Security Group
+```
+db_security_group = {
+  rules = [
+    {
+      from_port = 3306
+      to_port   = 3306
+    }
+  ]
+}
+```
+
+*  We have one database rule: `TCP 3306`
+* Port 3306 is the port used by MySQL.
+* So:
+```
+DB Security Group
+       │
+       └── TCP 3306
+```
+
+* Our complete input flow
+* This is the important part:
+```sh
+                 sample.tfvars
+                      │
+        ┌─────────────┼─────────────┐
+        │             │             │
+        ▼             ▼             ▼
+       VPC          Subnets     Security Groups
+        │             │             │
+        │        ┌────┴────┐     ┌───┴────┐
+        │        │         │     │        │
+        ▼        ▼         ▼     ▼        ▼
+    10.10.0/16 Public   Private Web      DB
+              Subnets   Subnets   SG      SG
+```
+
+* One important thing
+* `sample.tfvars` is not automatically loaded by Terraform.
+
+* Later, when we run Terraform, we'll explicitly tell Terraform to use it:
+  * `terraform plan -var-file="sample.tfvars"`
+* and:
+  * `terraform apply -var-file="sample.tfvars"`
+
+# Step 19 — Add terraform.tf and providers.tf
+
+1. Create terraform.tf
+
+* Add:
+```
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.82.2"
+    }
+  }
+
+  required_version = ">= 1.10.0"
+}
+```
+* What does this do?
+```sh
+Terraform
+   │
+   ├── Terraform version must be >= 1.10.0
+   │
+   └── AWS provider
+          │
+          ├── Source: hashicorp/aws
+          └── Version: >= 5.82.2
+```
+
+* `required_providers`
+```
+# Our configuration needs the AWS provider.
+required_providers {
+  aws = {   
+```
+
+* `source`
+  * This tells Terraform where the AWS provider comes from. `source = "hashicorp/aws"`
+
+* `version`
+  * `Use AWS provider version 5.82.2 or newer.`
+
+*  `required_version`
+  * `required_version = ">= 1.10.0"` Our Terraform CLI should be version 1.10.0 or newer.
+
+---
+
+2. Create providers.tf
+
+* Now create: `providers.tf`
+* Add:
+```
+provider "aws" {
+  region = var.region
+}
+```
+* This connects our Terraform configuration to AWS.
+
+* We have:
+  * `region = "us-east-1"`
+  * in our sample.tfvars.
+---
+
+3. Check the complete variable/value relationship
+
+```sh
+variables.tf                         sample.tfvars
+
+variable "region"          ←──────→  region = "us-east-1"
+
+variable "vpc_cidr"        ←──────→  vpc_cidr = "10.10.0.0/16"
+
+variable "network_name"    ←──────→  network_name = "ntier"
+
+variable "public_subnets"  ←──────→  public_subnets = [...]
+
+variable "private_subnets" ←──────→  private_subnets = [...]
+
+variable "web_security_group" ←───→  web_security_group = {...}
+
+variable "db_security_group"  ←───→ db_security_group = {...}
+```
+---
+
+# Our VPC ntier is created with:
+- 4 subnets
+- ntier-private
+- ntier-public
+- ntier-igw
+
+# Activity-3
+
+| Instructor's Activity-3 | Our Activity-3 | Status |
+|---|---|---|
+| VPC | VPC | Done |
+| Internet Gateway | Internet Gateway | Done |
+| Private Route Table | Private Route Table | Done |
+| Public Route Table | Public Route Table | Done |
+| Private Subnets | Private Subnets | Done |
+| Public Subnets | Public Subnets | Done |
+| Private Route Associations | Private Route Associations | Done |
+| Public Route Associations | Public Route Associations | Done |
+| Web Security Group | Web Security Group | Done |
+| Web Ingress Rules | Web Ingress Rules | Done |
+| Web Egress Rule | Web Egress Rule | Done |
+| DB Security Group | DB Security Group | Done |
+| DB Ingress Rules | DB Ingress Rule | Done |
+| DB Egress Rule | DB Egress Rule | Done |
+
+---
+
+![Preview](Images/tf40.png)
+![Preview](Images/tf41.png)
+
+---
