@@ -1575,8 +1575,8 @@ VPC
 
 * Create VPC
 
-![Preview](images/tf30.png)
-![Preview](images/tf31.png)
+![Preview](Images/tf30.png)
+![Preview](Images/tf31.png)
 
 * Step 2 — Create Internet Gateway
   * What is an Internet Gateway?
@@ -1611,13 +1611,13 @@ VPC
 * Without this gate, nothing can enter or leave.
 
 * AWS Portal
-![Preview](images/tf32.png)
-![Preview](images/tf33.png)
+![Preview](Images/tf32.png)
+![Preview](Images/tf33.png)
 * After cretaed IGW 
   * we have to attached VPC to Internet Gateway
     * Click -> Actions --> Attach to VPC --> Choose --> ntier-vpc --> Click --> Attach
 
-![Preview](images/tf34.png)
+![Preview](Images/tf34.png)
 
 
 * Now Connection is ready.
@@ -1829,11 +1829,11 @@ Internet NOT Allowed
 
 ***Step 4 — Create the Public Route Table***
 
-![Preview](images/tf35.png)
+![Preview](Images/tf35.png)
 
 ***Step 5 — Create the Private Route Table***
 
-![Preview](images/tf36.png)
+![Preview](Images/tf36.png)
 
 * Current Architecture
 
@@ -2104,8 +2104,8 @@ Internet
     - `- Select ntier-igw`
 5. Save the changes.
 
-![Preview](images/tf37.png)
-![Preview](images/tf38.png)
+![Preview](Images/tf37.png)
+![Preview](Images/tf38.png)
 
 * Your architecture is currently:
 
@@ -2234,7 +2234,7 @@ us-east-1b
 
 * Understanding the reason behind each component is what separates someone who has memorized AWS from someone who can design and troubleshoot real cloud infrastructure.
 
-![Preview](images/tf39.png)
+![Preview](Images/tf39.png)
 
 * Your Network Architecture
 
@@ -2271,7 +2271,7 @@ us-east-1b
                  Private Route Table
                172.16.0.0/16 → local
 ```
-![Preview](images/tf40.png)
+![Preview](Images/tf40.png)
 
 * Why did we create 2 Public and 2 Private subnets?
 
